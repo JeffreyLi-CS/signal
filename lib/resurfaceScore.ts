@@ -1,4 +1,27 @@
-export function scoreResurface({
+import { cosineSimilarity } from './embeddings';
+
+/**
+ * Score using cosine similarity between query and item embeddings.
+ * Returns a value between 0 and 1, or null if embeddings are unavailable.
+ */
+export function scoreSemanticResurface(
+  queryEmbedding: number[] | null,
+  itemEmbedding: string | null
+): number | null {
+  if (!queryEmbedding || !itemEmbedding) return null;
+  try {
+    const parsed: number[] = JSON.parse(itemEmbedding);
+    return cosineSimilarity(queryEmbedding, parsed);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fallback heuristic score based on keyword overlap, recency, and share count.
+ * Used when embeddings are not available.
+ */
+export function scoreFallbackResurface({
   keywords,
   message,
   shareCount,

@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { normalizeUrl } from '../lib/urlNormalize';
 import { keywordsFromUrl } from '../lib/keywordExtract';
+import { embedText, buildEmbedInput } from '../lib/embeddings';
 
 const prisma = new PrismaClient();
 
@@ -16,13 +17,22 @@ async function main() {
 
   for (const link of links) {
     const normalized = normalizeUrl(link);
+    const keywords = keywordsFromUrl(normalized);
+    const embeddingInput = buildEmbedInput({
+      url: normalized,
+      title: normalized,
+      keywords
+    });
+    const embedding = await embedText(embeddingInput);
+
     await prisma.sharedItem.create({
       data: {
         type: 'link',
         canonicalKey: normalized,
         url: normalized,
         title: normalized,
-        keywords: JSON.stringify(keywordsFromUrl(normalized)),
+        keywords: JSON.stringify(keywords),
+        embedding: embedding ? JSON.stringify(embedding) : null,
         lastSharedAt: new Date(),
         firstSharedAt: new Date(),
         shareCount: 1

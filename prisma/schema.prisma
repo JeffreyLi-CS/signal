@@ -28,4 +28,5 @@ model SharedItem {
   shareCount     Int      @default(1)
   referenceCount Int      @default(0)
   keywords       String   @default("[]")
+  embedding      String?
 }

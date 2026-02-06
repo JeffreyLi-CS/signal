@@ -20,7 +20,8 @@ CREATE TABLE "SharedItem" (
     "lastSharedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "shareCount" INTEGER NOT NULL DEFAULT 1,
     "referenceCount" INTEGER NOT NULL DEFAULT 0,
-    "keywords" TEXT NOT NULL DEFAULT '[]'
+    "keywords" TEXT NOT NULL DEFAULT '[]',
+    "embedding" TEXT
 );
 
 -- CreateIndex
