@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum SharedItemType {
+  link
+  image
+}
+
+model Message {
+  id           Int       @id @default(autoincrement())
+  user         String
+  text         String
+  createdAt    DateTime  @default(now())
+  isBot        Boolean   @default(false)
+  sharedItemId Int?
+  sharedItem   SharedItem? @relation(fields: [sharedItemId], references: [id])
+}
+
+model SharedItem {
+  id             Int             @id @default(autoincrement())
+  type           SharedItemType
+  canonicalKey   String          @unique
+  url            String?
+  imagePath      String?
+  title          String?
+  firstSharedAt  DateTime        @default(now())
+  lastSharedAt   DateTime        @default(now())
+  shareCount     Int             @default(1)
+  referenceCount Int             @default(0)
+  keywords       String          @default("[]")
+  messages       Message[]
+}
