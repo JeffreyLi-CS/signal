@@ -1,26 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { extractUrls, normalizeUrl } from "@/lib/urlNormalize";
-import { extractKeywordsFromUrl } from "@/lib/keywordExtract";
-import { findBestMatch, shouldTriggerResurface } from "@/lib/resurfaceScore";
+import { NextResponse } from 'next/server';
+import { prisma } from '../../../lib/prisma';
+import { normalizeUrl } from '../../../lib/urlNormalize';
+import { keywordsFromUrl } from '../../../lib/keywordExtract';
+import { scoreResurface } from '../../../lib/resurfaceScore';
+
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+const BOT_NAME = 'LockIn Bot';
+const TRIGGER_PHRASES = ['that link', 'send link', 'what was the', 'the screenshot'];
+
+function extractUrls(text: string) {
+  return text.match(URL_REGEX) ?? [];
+}
+
+function shouldTriggerResurface(message: string) {
+  const lower = message.toLowerCase();
+  return TRIGGER_PHRASES.some((phrase) => lower.includes(phrase));
+}
 
 export async function GET() {
-  const messages = await prisma.message.findMany({
-    orderBy: { createdAt: "asc" },
-    include: { sharedItem: true }
-  });
+  const messages = await prisma.message.findMany({ orderBy: { createdAt: 'asc' } });
   return NextResponse.json(messages);
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const text = String(body.text ?? "").trim();
-  const user = String(body.user ?? "Anonymous");
-
-  if (!text) {
-    return NextResponse.json({ error: "Message is required" }, { status: 400 });
-  }
-
+export async function POST(request: Request) {
+  const { user, text } = await request.json();
   const message = await prisma.message.create({
     data: {
       user,
@@ -29,13 +32,14 @@ export async function POST(request: NextRequest) {
   });
 
   const urls = extractUrls(text);
-  for (const url of urls) {
-    const normalized = normalizeUrl(url);
+  const sharedIds: string[] = [];
+  for (const rawUrl of urls) {
+    const normalized = normalizeUrl(rawUrl);
     const existing = await prisma.sharedItem.findUnique({
       where: { canonicalKey: normalized }
     });
-
     if (existing) {
+      sharedIds.push(existing.id);
       await prisma.sharedItem.update({
         where: { id: existing.id },
         data: {
@@ -44,47 +48,63 @@ export async function POST(request: NextRequest) {
         }
       });
     } else {
-      const keywords = extractKeywordsFromUrl(normalized);
-      await prisma.sharedItem.create({
+      const keywords = keywordsFromUrl(normalized);
+      const created = await prisma.sharedItem.create({
         data: {
-          type: "link",
+          type: 'link',
           canonicalKey: normalized,
           url: normalized,
-          keywords: JSON.stringify(keywords),
-          shareCount: 1,
-          referenceCount: 0
+          title: normalized,
+          keywords,
+          lastSharedAt: new Date(),
+          firstSharedAt: new Date(),
+          shareCount: 1
         }
       });
+      sharedIds.push(created.id);
     }
   }
 
-  const sharedItems = await prisma.sharedItem.findMany();
-  const bestMatch = findBestMatch(sharedItems, text);
-  const triggerResurface = shouldTriggerResurface(text);
-  const shouldResurface = Boolean(bestMatch) && (triggerResurface || bestMatch);
-  let botMessage = null;
-
-  if (bestMatch && shouldResurface) {
-    const updated = await prisma.sharedItem.update({
-      where: { id: bestMatch.id },
-      data: { referenceCount: { increment: 1 } }
-    });
-
-    botMessage = await prisma.message.create({
+  if (sharedIds.length > 0) {
+    await prisma.message.update({
+      where: { id: message.id },
       data: {
-        user: "LockIn Bot",
-        text: `Resurfacing: ${updated.title ?? updated.url ?? "Shared item"}`,
-        isBot: true,
-        sharedItemId: updated.id
-      },
-      include: { sharedItem: true }
+        text: `${text} ${sharedIds.map((id) => `[[shared:${id}]]`).join(' ')}`
+      }
     });
   }
 
-  const responseMessage = await prisma.message.findUnique({
-    where: { id: message.id },
-    include: { sharedItem: true }
-  });
+  const lowerText = text.toLowerCase();
+  const sharedItems = await prisma.sharedItem.findMany();
+  let topMatch: { id: string; score: number } | null = null;
 
-  return NextResponse.json({ message: responseMessage, botMessage });
+  for (const item of sharedItems) {
+    const keywords = (item.keywords as string[]) ?? [];
+    const score = scoreResurface({
+      keywords,
+      message: lowerText,
+      shareCount: item.shareCount,
+      lastSharedAt: item.lastSharedAt
+    });
+    if (!topMatch || score > topMatch.score) {
+      topMatch = { id: item.id, score };
+    }
+  }
+
+  const shouldResurface = shouldTriggerResurface(text) || (topMatch && topMatch.score >= 4);
+
+  if (shouldResurface && topMatch) {
+    await prisma.sharedItem.update({
+      where: { id: topMatch.id },
+      data: { referenceCount: { increment: 1 } }
+    });
+    await prisma.message.create({
+      data: {
+        user: BOT_NAME,
+        text: `Here's that item you asked for. [[shared:${topMatch.id}]]`
+      }
+    });
+  }
+
+  return NextResponse.json(message);
 }

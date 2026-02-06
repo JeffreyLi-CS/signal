@@ -1,5 +1,6 @@
-import { PrismaClient } from "@prisma/client";
-import { normalizeUrl } from "../lib/urlNormalize.ts";
+import { PrismaClient } from '@prisma/client';
+import { normalizeUrl } from '../lib/urlNormalize';
+import { keywordsFromUrl } from '../lib/keywordExtract';
 
 const prisma = new PrismaClient();
 
@@ -7,65 +8,33 @@ async function main() {
   await prisma.message.deleteMany();
   await prisma.sharedItem.deleteMany();
 
-  const normalizedLink = normalizeUrl("https://example.com/product");
-  const linkItem = await prisma.sharedItem.create({
-    data: {
-      type: "link",
-      canonicalKey: normalizedLink,
-      url: normalizedLink,
-      title: "Example Product",
-      keywords: JSON.stringify(["example", "product"]),
-      shareCount: 2,
-      referenceCount: 1,
-      firstSharedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      lastSharedAt: new Date(Date.now() - 1000 * 60 * 20)
-    }
-  });
+  const links = [
+    'https://example.com/docs/lockin?utm_source=demo',
+    'https://news.ycombinator.com/item?id=1234',
+    'https://github.com/vercel/next.js'
+  ];
 
-  const imageItem = await prisma.sharedItem.create({
-    data: {
-      type: "image",
-      canonicalKey: "seed-image-1",
-      imagePath: "/uploads/sample.png",
-      keywords: JSON.stringify(["screenshot", "seed"]),
-      shareCount: 1,
-      referenceCount: 0,
-      firstSharedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      lastSharedAt: new Date(Date.now() - 1000 * 60 * 60 * 2)
-    }
-  });
+  for (const link of links) {
+    const normalized = normalizeUrl(link);
+    await prisma.sharedItem.create({
+      data: {
+        type: 'link',
+        canonicalKey: normalized,
+        url: normalized,
+        title: normalized,
+        keywords: keywordsFromUrl(normalized),
+        lastSharedAt: new Date(),
+        firstSharedAt: new Date(),
+        shareCount: 1
+      }
+    });
+  }
 
   await prisma.message.createMany({
     data: [
-      {
-        user: "Ava",
-        text: "Kicking off the LockIn demo. Here is the product link: https://example.com/product",
-        createdAt: new Date(Date.now() - 1000 * 60 * 30)
-      },
-      {
-        user: "Milo",
-        text: "Nice! That link is solid.",
-        createdAt: new Date(Date.now() - 1000 * 60 * 25)
-      },
-      {
-        user: "Ava",
-        text: "Screenshot drop coming next.",
-        createdAt: new Date(Date.now() - 1000 * 60 * 10)
-      },
-      {
-        user: "LockIn Bot",
-        text: "Resurfacing: Example Product",
-        isBot: true,
-        sharedItemId: linkItem.id,
-        createdAt: new Date(Date.now() - 1000 * 60 * 5)
-      },
-      {
-        user: "LockIn Bot",
-        text: "Resurfacing: Screenshot",
-        isBot: true,
-        sharedItemId: imageItem.id,
-        createdAt: new Date(Date.now() - 1000 * 60 * 2)
-      }
+      { user: 'Avery', text: 'Just dropped the roadmap link: https://example.com/docs/lockin' },
+      { user: 'Jordan', text: 'Found this thread on HN https://news.ycombinator.com/item?id=1234' },
+      { user: 'Maya', text: 'Next.js repo is here https://github.com/vercel/next.js' }
     ]
   });
 }

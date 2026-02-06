@@ -1,6 +1,5 @@
 node_modules
 .next
-prisma/dev.db
-prisma/dev.db-journal
-.DS_Store
 .env
+prisma/dev.db
+public/uploads

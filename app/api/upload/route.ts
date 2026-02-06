@@ -1,16 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
-import { prisma } from "@/lib/prisma";
-import { hashBuffer } from "@/lib/hashImage";
+import { NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { prisma } from '../../../lib/prisma';
+import { hashBuffer } from '../../../lib/hashImage';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-  const user = String(formData.get("user") ?? "Anonymous");
-
+  const file = formData.get('file') as File | null;
+  const user = formData.get('user') as string | null;
   if (!file) {
-    return NextResponse.json({ error: "File required" }, { status: 400 });
+    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
   }
 
   const arrayBuffer = await file.arrayBuffer();
@@ -21,10 +20,10 @@ export async function POST(request: NextRequest) {
     where: { canonicalKey: hash }
   });
 
-  let sharedItem = existing;
+  let sharedItemId = existing?.id;
 
   if (existing) {
-    sharedItem = await prisma.sharedItem.update({
+    await prisma.sharedItem.update({
       where: { id: existing.id },
       data: {
         shareCount: { increment: 1 },
@@ -32,31 +31,36 @@ export async function POST(request: NextRequest) {
       }
     });
   } else {
-    const ext = path.extname(file.name) || ".png";
-    const filename = `${hash}-${Date.now()}${ext}`;
-    const uploadPath = path.join(process.cwd(), "public", "uploads", filename);
-    await fs.writeFile(uploadPath, buffer);
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    await fs.mkdir(uploadsDir, { recursive: true });
+    const fileName = `${Date.now()}-${file.name}`;
+    const filePath = path.join(uploadsDir, fileName);
+    await fs.writeFile(filePath, buffer);
+    const publicPath = `/uploads/${fileName}`;
 
-    sharedItem = await prisma.sharedItem.create({
+    const created = await prisma.sharedItem.create({
       data: {
-        type: "image",
+        type: 'image',
         canonicalKey: hash,
-        imagePath: `/uploads/${filename}`,
-        keywords: JSON.stringify(["image", "upload"]),
-        shareCount: 1,
-        referenceCount: 0
+        imagePath: publicPath,
+        title: file.name,
+        keywords: [file.name.toLowerCase().replace(/\W+/g, ' ')],
+        lastSharedAt: new Date(),
+        firstSharedAt: new Date(),
+        shareCount: 1
+      }
+    });
+    sharedItemId = created.id;
+  }
+
+  if (user) {
+    await prisma.message.create({
+      data: {
+        user,
+        text: sharedItemId ? `Shared an image. [[shared:${sharedItemId}]]` : 'Shared an image.'
       }
     });
   }
 
-  const message = await prisma.message.create({
-    data: {
-      user,
-      text: "shared an image",
-      sharedItemId: sharedItem.id
-    },
-    include: { sharedItem: true }
-  });
-
-  return NextResponse.json({ sharedItem, message });
+  return NextResponse.json({ ok: true });
 }

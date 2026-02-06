@@ -1,6 +1,6 @@
 # LockIn MVP
 
-LockIn is a lightweight group chat prototype that tracks shared links and images, dedupes them, and resurfaces the best match when someone asks for it.
+LockIn is a single-room chat MVP that tracks shared links and images, dedupes them, and resurfaces context when referenced.
 
 ## Install
 
@@ -11,21 +11,23 @@ npm install
 ## Database setup
 
 ```bash
-npm run db:push
-npm run db:seed
+cp .env.example .env
+npx prisma generate
+npx prisma migrate dev --name init
+npx prisma db seed
 ```
 
-## Run dev
+## Run dev server
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000/chat`.
+Visit `http://localhost:3000/chat`.
 
 ## Demo steps
 
-1. Send a message with a link (e.g. `https://example.com/product`).
-2. Send the same link again and watch the share count rise in the Shared panel.
-3. Upload the same image twice and confirm it dedupes.
-4. Ask "what was that link" and watch the bot resurface the top match.
+1. Send a message with a link (ex: `https://example.com/docs/lockin`).
+2. Resend the same link and see share count increase in the Shared Panel.
+3. Upload an image twice and see the image share count increase instead of duplicating.
+4. Ask "what was that link" and watch the bot resurface the best match.

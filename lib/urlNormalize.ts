@@ -1,28 +1,29 @@
-const TRACKING_PARAMS = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-  "fbclid",
-  "gclid"
-];
+const TRACKING_PARAMS = new Set([
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  'fbclid',
+  'gclid'
+]);
 
 export function normalizeUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl);
-    url.protocol = "https:";
-    TRACKING_PARAMS.forEach((param) => url.searchParams.delete(param));
-    url.hash = "";
-    const normalized = url.toString();
-    return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
-  } catch (error) {
-    return rawUrl.trim();
+  let url = rawUrl.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
   }
-}
-
-export function extractUrls(text: string): string[] {
-  const regex = /https?:\/\/[^\s]+/gi;
-  const matches = text.match(regex) ?? [];
-  return matches.map((match) => match.replace(/[),.]+$/, ""));
+  try {
+    const parsed = new URL(url);
+    [...parsed.searchParams.keys()].forEach((key) => {
+      if (TRACKING_PARAMS.has(key.toLowerCase())) {
+        parsed.searchParams.delete(key);
+      }
+    });
+    parsed.hash = '';
+    const normalized = parsed.toString();
+    return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+  } catch {
+    return url;
+  }
 }
