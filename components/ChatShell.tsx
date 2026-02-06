@@ -26,7 +26,7 @@ export function ChatShell({
     src: string;
     alt: string;
   } | null>(null);
-  const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const highlightTimeoutRef = useRef<number | null>(null);
   const listRef = useRef<MessageListHandle | null>(null);
