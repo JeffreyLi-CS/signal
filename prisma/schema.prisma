@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  user      String
+  text      String
+  createdAt DateTime @default(now())
+}
+
+model SharedItem {
+  id             String   @id @default(cuid())
+  type           String
+  canonicalKey   String   @unique
+  url            String?
+  imagePath      String?
+  title          String?
+  firstSharedAt  DateTime @default(now())
+  lastSharedAt   DateTime @default(now())
+  shareCount     Int      @default(1)
+  referenceCount Int      @default(0)
+  keywords       Json
+}
