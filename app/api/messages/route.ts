@@ -55,7 +55,7 @@ export async function POST(request: Request) {
           canonicalKey: normalized,
           url: normalized,
           title: normalized,
-          keywords,
+          keywords: JSON.stringify(keywords),
           lastSharedAt: new Date(),
           firstSharedAt: new Date(),
           shareCount: 1
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   let topMatch: { id: string; score: number } | null = null;
 
   for (const item of sharedItems) {
-    const keywords = (item.keywords as string[]) ?? [];
+    const keywords: string[] = JSON.parse((item.keywords as string) ?? "[]");
     const score = scoreResurface({
       keywords,
       message: lowerText,
@@ -101,7 +101,8 @@ export async function POST(request: Request) {
     await prisma.message.create({
       data: {
         user: BOT_NAME,
-        text: `Here's that item you asked for. [[shared:${topMatch.id}]]`
+        text: `Here's that item you asked for. [[shared:${topMatch.id}]]`,
+        isBot: true
       }
     });
   }

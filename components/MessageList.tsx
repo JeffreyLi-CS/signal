@@ -5,7 +5,7 @@ import { MessageBubble } from "./MessageBubble";
 export type MessageWithShared = Message & { sharedItem?: SharedItem | null };
 
 export type MessageListHandle = {
-  scrollToMessage: (id: number) => void;
+  scrollToMessage: (id: string) => void;
   scrollToBottom: () => void;
 };
 
@@ -14,7 +14,7 @@ export const MessageList = forwardRef<
   {
     messages: MessageWithShared[];
     currentUser: string;
-    highlightedMessageId: number | null;
+    highlightedMessageId: string | null;
     onImageClick?: (src: string, alt: string) => void;
   }
 >(({ messages, currentUser, highlightedMessageId, onImageClick }, ref) => {
@@ -29,7 +29,7 @@ export const MessageList = forwardRef<
     });
   };
 
-  const scrollToMessage = (id: number) => {
+  const scrollToMessage = (id: string) => {
     if (!containerRef.current) return;
     const target = containerRef.current.querySelector(
       `[data-message-id="${id}"]`

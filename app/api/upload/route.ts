@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         canonicalKey: hash,
         imagePath: publicPath,
         title: file.name,
-        keywords: [file.name.toLowerCase().replace(/\W+/g, ' ')],
+        keywords: JSON.stringify([file.name.toLowerCase().replace(/\W+/g, ' ')]),
         lastSharedAt: new Date(),
         firstSharedAt: new Date(),
         shareCount: 1
@@ -57,7 +57,8 @@ export async function POST(request: Request) {
     await prisma.message.create({
       data: {
         user,
-        text: sharedItemId ? `Shared an image. [[shared:${sharedItemId}]]` : 'Shared an image.'
+        text: sharedItemId ? `Shared an image. [[shared:${sharedItemId}]]` : 'Shared an image.',
+        sharedItemId: sharedItemId ?? null
       }
     });
   }

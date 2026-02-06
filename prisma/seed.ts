@@ -22,7 +22,7 @@ async function main() {
         canonicalKey: normalized,
         url: normalized,
         title: normalized,
-        keywords: keywordsFromUrl(normalized),
+        keywords: JSON.stringify(keywordsFromUrl(normalized)),
         lastSharedAt: new Date(),
         firstSharedAt: new Date(),
         shareCount: 1

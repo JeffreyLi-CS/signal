@@ -8,6 +8,12 @@ const TRACKING_PARAMS = new Set([
   'gclid'
 ]);
 
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+
+export function extractUrls(text: string): string[] {
+  return text.match(URL_REGEX) ?? [];
+}
+
 export function normalizeUrl(rawUrl: string): string {
   let url = rawUrl.trim();
   if (!/^https?:\/\//i.test(url)) {

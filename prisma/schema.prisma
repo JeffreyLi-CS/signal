@@ -8,10 +8,12 @@ datasource db {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  user      String
-  text      String
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  user         String
+  text         String
+  isBot        Boolean  @default(false)
+  sharedItemId String?
+  createdAt    DateTime @default(now())
 }
 
 model SharedItem {
@@ -25,5 +27,5 @@ model SharedItem {
   lastSharedAt   DateTime @default(now())
   shareCount     Int      @default(1)
   referenceCount Int      @default(0)
-  keywords       Json
+  keywords       String   @default("[]")
 }
