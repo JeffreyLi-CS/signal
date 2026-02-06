@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { prisma } from '../../../lib/prisma';
 import { hashBuffer } from '../../../lib/hashImage';
+import { embedText, buildEmbedInput } from '../../../lib/embeddings';
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -38,13 +39,22 @@ export async function POST(request: Request) {
     await fs.writeFile(filePath, buffer);
     const publicPath = `/uploads/${fileName}`;
 
+    const fileLabel = file.name.toLowerCase().replace(/\W+/g, ' ');
+    const embeddingInput = buildEmbedInput({
+      fileName: file.name,
+      title: file.name,
+      keywords: [fileLabel]
+    });
+    const embedding = await embedText(embeddingInput);
+
     const created = await prisma.sharedItem.create({
       data: {
         type: 'image',
         canonicalKey: hash,
         imagePath: publicPath,
         title: file.name,
-        keywords: JSON.stringify([file.name.toLowerCase().replace(/\W+/g, ' ')]),
+        keywords: JSON.stringify([fileLabel]),
+        embedding: embedding ? JSON.stringify(embedding) : null,
         lastSharedAt: new Date(),
         firstSharedAt: new Date(),
         shareCount: 1
