@@ -16,6 +16,7 @@ CREATE TABLE "SharedItem" (
     "url" TEXT,
     "imagePath" TEXT,
     "title" TEXT,
+    "sharedBy" TEXT,
     "firstSharedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastSharedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "shareCount" INTEGER NOT NULL DEFAULT 1,

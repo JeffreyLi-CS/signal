@@ -23,6 +23,7 @@ model SharedItem {
   url            String?
   imagePath      String?
   title          String?
+  sharedBy       String?
   firstSharedAt  DateTime @default(now())
   lastSharedAt   DateTime @default(now())
   shareCount     Int      @default(1)

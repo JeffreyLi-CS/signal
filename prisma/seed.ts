@@ -9,14 +9,14 @@ async function main() {
   await prisma.message.deleteMany();
   await prisma.sharedItem.deleteMany();
 
-  const links = [
-    'https://example.com/docs/lockin?utm_source=demo',
-    'https://news.ycombinator.com/item?id=1234',
-    'https://github.com/vercel/next.js'
+  const links: { url: string; user: string }[] = [
+    { url: 'https://example.com/docs/lockin?utm_source=demo', user: 'Avery' },
+    { url: 'https://news.ycombinator.com/item?id=1234', user: 'Jordan' },
+    { url: 'https://github.com/vercel/next.js', user: 'Maya' }
   ];
 
   for (const link of links) {
-    const normalized = normalizeUrl(link);
+    const normalized = normalizeUrl(link.url);
     const keywords = keywordsFromUrl(normalized);
     const embeddingInput = buildEmbedInput({
       url: normalized,
@@ -31,6 +31,7 @@ async function main() {
         canonicalKey: normalized,
         url: normalized,
         title: normalized,
+        sharedBy: link.user,
         keywords: JSON.stringify(keywords),
         embedding: embedding ? JSON.stringify(embedding) : null,
         lastSharedAt: new Date(),
