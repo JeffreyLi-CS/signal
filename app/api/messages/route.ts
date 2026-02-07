@@ -35,6 +35,7 @@ export async function POST(request: Request) {
 
   const urls = extractUrls(text);
   const sharedIds: string[] = [];
+  const duplicates: { url: string; sharedBy: string | null; daysAgo: number }[] = [];
   for (const rawUrl of urls) {
     const normalized = normalizeUrl(rawUrl);
     const existing = await prisma.sharedItem.findUnique({
@@ -42,6 +43,10 @@ export async function POST(request: Request) {
     });
     if (existing) {
       sharedIds.push(existing.id);
+      const daysAgo = Math.round(
+        (Date.now() - existing.firstSharedAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      duplicates.push({ url: normalized, sharedBy: existing.sharedBy, daysAgo });
       await prisma.sharedItem.update({
         where: { id: existing.id },
         data: {
@@ -65,6 +70,7 @@ export async function POST(request: Request) {
           canonicalKey: normalized,
           url: normalized,
           title: normalized,
+          sharedBy: user,
           keywords: JSON.stringify(keywords),
           embedding: embedding ? JSON.stringify(embedding) : null,
           lastSharedAt: new Date(),
@@ -83,6 +89,49 @@ export async function POST(request: Request) {
         text: `${text} ${sharedIds.map((id) => `[[shared:${id}]]`).join(' ')}`
       }
     });
+  }
+
+  // --- Duplicate detection ---
+  for (const dup of duplicates) {
+    const who = dup.sharedBy && dup.sharedBy !== user ? dup.sharedBy : 'someone';
+    const when = dup.daysAgo === 0 ? 'earlier today' : dup.daysAgo === 1 ? 'yesterday' : `${dup.daysAgo} days ago`;
+    await prisma.message.create({
+      data: {
+        user: BOT_NAME,
+        text: `Heads up — ${who} already shared this link ${when}!`,
+        isBot: true
+      }
+    });
+  }
+
+  // --- /recap command ---
+  if (text.trim().toLowerCase() === '/recap') {
+    const allItems = await prisma.sharedItem.findMany({
+      orderBy: { lastSharedAt: 'desc' },
+      take: 10
+    });
+    if (allItems.length === 0) {
+      await prisma.message.create({
+        data: { user: BOT_NAME, text: 'Nothing has been shared yet!', isBot: true }
+      });
+    } else {
+      const lines = allItems.map((item, i) => {
+        const label = item.type === 'image'
+          ? `Image: ${item.title ?? 'untitled'}`
+          : `Link: ${item.url ?? item.title ?? 'untitled'}`;
+        const shares = item.shareCount > 1 ? ` (shared ${item.shareCount}x)` : '';
+        const by = item.sharedBy ? ` — by ${item.sharedBy}` : '';
+        return `${i + 1}. ${label}${shares}${by}`;
+      });
+      await prisma.message.create({
+        data: {
+          user: BOT_NAME,
+          text: `Here's a recap of recent shared items:\n${lines.join('\n')}`,
+          isBot: true
+        }
+      });
+    }
+    return NextResponse.json(message);
   }
 
   // --- Resurfacing logic ---

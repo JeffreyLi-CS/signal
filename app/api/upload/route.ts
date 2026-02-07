@@ -31,6 +31,20 @@ export async function POST(request: Request) {
         lastSharedAt: new Date()
       }
     });
+    if (user) {
+      const daysAgo = Math.round(
+        (Date.now() - existing.firstSharedAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const who = existing.sharedBy && existing.sharedBy !== user ? existing.sharedBy : 'someone';
+      const when = daysAgo === 0 ? 'earlier today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
+      await prisma.message.create({
+        data: {
+          user: 'LockIn Bot',
+          text: `Heads up — ${who} already shared this image ${when}!`,
+          isBot: true
+        }
+      });
+    }
   } else {
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     await fs.mkdir(uploadsDir, { recursive: true });
@@ -53,6 +67,7 @@ export async function POST(request: Request) {
         canonicalKey: hash,
         imagePath: publicPath,
         title: file.name,
+        sharedBy: user,
         keywords: JSON.stringify([fileLabel]),
         embedding: embedding ? JSON.stringify(embedding) : null,
         lastSharedAt: new Date(),
